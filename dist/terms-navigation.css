@@ -1,0 +1,38 @@
+.terms {
+  list-style: none;
+}
+
+.terms-caret {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: calc(0.5em / 2) 0 calc(0.5em / 2) 0.5em;
+  border-color: transparent transparent transparent #007bff;
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: transform 0.125s ease-in-out;
+  margin-left: -0.5em;
+}
+
+.terms-item:not(.has-children) .terms-caret {
+  visibility: hidden;
+}
+
+.terms-item > .terms {
+  max-height: 0;
+  transition: max-height 0.125s ease-in-out;
+  overflow: hidden;
+}
+
+.terms-item.is-open > .terms {
+  max-height: 300px;
+}
+
+.terms-item.is-open .terms-caret {
+  transform: rotate(-270deg);
+}
+
+.terms-item.is-active {
+  background: yellow;
+}

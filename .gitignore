@@ -1,0 +1,31 @@
+# Mac OS
+.DS_Store
+
+# Node
+node_modules
+**/node_modules
+npm-debug.log
+
+
+# PHP
+vendor
+!vendor/google/recaptcha
+composer.phar
+
+# Temp Dir
+tmp
+temp
+cache
+.cache
+
+# Env Files
+.env-*
+.env
+!.env-sample
+
+# Wordpress
+wp-config-*
+wp-config
+.plugins
+.mu-plugins
+.uploads
