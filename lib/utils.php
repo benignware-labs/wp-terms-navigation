@@ -1,6 +1,5 @@
 <?php
 
-
 function wp_terms_navigation_render_template($template, $format = '', $data = array()) {
 	$is_absolute_path = $template[0] === DIRECTORY_SEPARATOR || preg_match('~\A[A-Z]:(?![^/\\\\])~i', $template) > 0;
 	$path_parts = pathinfo($template);
@@ -36,7 +35,7 @@ function wp_terms_navigation_render_template($template, $format = '', $data = ar
   return $output;
 }
 
-
+/*
 function wp_terms_navigation_convert_to_hierarchy($results, $idField='term_id', $parentIdField='parent', $childrenField='children') {
 	$hierarchy = array(); // -- Stores the final data
 	$itemReferences = array(); // -- temporary array, storing references to all items in a single-dimention
@@ -65,7 +64,7 @@ function wp_terms_navigation_convert_to_hierarchy($results, $idField='term_id', 
 
 	return $hierarchy;
 }
-
+*/
 /*
 function wp_terms_navigation_convert_to_hierarchy($source) {
 	$nested = array();
@@ -111,3 +110,32 @@ function wp_terms_navigation_convert_to_hierarchy (&$list, $parentId = null, $le
   }
   return $tree;
 }*/
+function wp_terms_navigation_convert_to_hierarchy(array &$elements, $parentId = 0, $level = 0) {
+  $branch = array();
+
+  foreach ($elements as &$element) {
+    if ($element['parent'] == $parentId) {
+      $children = wp_terms_navigation_convert_to_hierarchy($elements, $element['term_id'], $level + 1);
+			$element['level'] = $level;
+      if ($children) {
+        $element['children'] = $children;
+      }
+      $branch[$element['term_id']] = $element;
+      // unset($elements[$element['term_id']]);
+    }
+  }
+  return $branch;
+}
+
+function wp_terms_navigation_hierarchy_to_flat(array &$elements) {
+  $result = array();
+
+  foreach ($elements as $element) {
+		$result[] = $element;
+    if (is_array($element['children'])) {
+      $children = wp_terms_navigation_hierarchy_to_flat($element['children']);
+			$result = array_merge($result, $children);
+    }
+  }
+  return $result;
+}

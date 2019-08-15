@@ -26,7 +26,9 @@ get_header(); ?>
 	<div id="primary" class="content-area">
 		<main id="main" class="site-main" role="main">
 
-      <?= get_category_navigation(); ?>
+			<?= get_terms_navigation(null, null, [
+				'format' => 'levels'
+			]); ?>
 
 		<?php
 		if ( have_posts() ) : ?>

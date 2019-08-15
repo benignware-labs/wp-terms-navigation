@@ -10,3 +10,12 @@ Version: 0.0.1
 :root {
 
 }
+
+*[data-toggle='collapse'] i {
+  font-size: 1.4rem;
+}
+
+*[data-toggle='collapse'].collapsed i {
+  transform: rotate(180deg);
+  transform-origin: center;
+}

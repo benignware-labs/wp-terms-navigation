@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0f9e98ccb932904ccb6e6bf047fe70ec",
+    "content-hash": "cfee7b9e2470331975590315a8244b80",
     "packages": [
         {
             "name": "composer/installers",
-            "version": "v1.6.0",
+            "version": "v1.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/installers.git",
-                "reference": "cfcca6b1b60bc4974324efb5783c13dca6932b5b"
+                "reference": "141b272484481432cda342727a427dc1e206bfa0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/installers/zipball/cfcca6b1b60bc4974324efb5783c13dca6932b5b",
-                "reference": "cfcca6b1b60bc4974324efb5783c13dca6932b5b",
+                "url": "https://api.github.com/repos/composer/installers/zipball/141b272484481432cda342727a427dc1e206bfa0",
+                "reference": "141b272484481432cda342727a427dc1e206bfa0",
                 "shasum": ""
             },
             "require": {
@@ -73,6 +73,7 @@
                 "RadPHP",
                 "SMF",
                 "Thelia",
+                "Whmcs",
                 "WolfCMS",
                 "agl",
                 "aimeos",
@@ -95,6 +96,7 @@
                 "installer",
                 "itop",
                 "joomla",
+                "known",
                 "kohana",
                 "laravel",
                 "lavalite",
@@ -124,52 +126,10 @@
                 "zend",
                 "zikula"
             ],
-            "time": "2018-08-27T06:10:37+00:00"
+            "time": "2019-08-12T15:00:31+00:00"
         }
     ],
     "packages-dev": [
-        {
-            "name": "wemakecustom/wp-mu-loader",
-            "version": "v1.0.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/wemakecustom/wp-mu-loader.git",
-                "reference": "36cb5b0939da619dc07392529fa0253d4017bde4"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/wemakecustom/wp-mu-loader/zipball/36cb5b0939da619dc07392529fa0253d4017bde4",
-                "reference": "36cb5b0939da619dc07392529fa0253d4017bde4",
-                "shasum": ""
-            },
-            "require": {
-                "composer/installers": "~1.0"
-            },
-            "suggest": {
-                "wemakecustom/wp-mu-composer": "Composer includer"
-            },
-            "type": "wordpress-muplugin",
-            "extra": {
-                "installer-name": "mu-loader"
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0"
-            ],
-            "authors": [
-                {
-                    "name": "WeMakeCustom",
-                    "email": "info@wemakecustom.com",
-                    "homepage": "http://www.wemakecustom.com"
-                }
-            ],
-            "description": "Enables the loading of Wordpress plugins sitting in mu-plugins (as folders)",
-            "keywords": [
-                "plugins",
-                "wordpress"
-            ],
-            "time": "2015-01-21T14:32:26+00:00"
-        },
         {
             "name": "wpackagist-plugin/wordpress-importer",
             "version": "0.6.4",
@@ -196,7 +156,8 @@
                 "url": "https://github.com/WPTRT/theme-unit-test.git",
                 "reference": "master"
             },
-            "type": "library"
+            "type": "library",
+            "time": "2019-07-28T06:16:31+00:00"
         }
     ],
     "aliases": [],

@@ -29,10 +29,31 @@
   max-height: 300px;
 }
 
-.terms-item.is-open .terms-caret {
+.terms-item.is-open > .terms-caret {
   transform: rotate(-270deg);
+}
+
+.terms-item {
+  padding-left: 1rem;
+  margin-left: 0;
 }
 
 .terms-item.is-active {
   background: yellow;
+}
+
+.terms-menu {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+.terms-collapse {
+  max-height: 0;
+  transition: max-height 0.125s ease-in-out;
+  overflow: hidden;
+}
+
+.terms-collapse.is-open {
+  max-height: 1000px;
 }

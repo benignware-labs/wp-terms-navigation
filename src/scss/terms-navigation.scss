@@ -30,24 +30,34 @@
     max-height: 300px;
   }
 
-  &-item.is-open &-caret {
+  &-item.is-open > &-caret {
     transform: rotate(-270deg);
   }
 
   &-item {
     // outline: 1px solid blue;
-
+    padding-left: 1rem;
+    margin-left: 0;
 
     &.is-active {
       background: yellow;
     }
-
-
   }
 
+  &-menu {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+  }
 
-  &-link {
+  &-collapse {
+    max-height: 0;
+    transition: max-height 0.125s ease-in-out;
+    overflow: hidden;
 
+    &.is-open {
+      max-height: 1000px;
+    }
   }
 
 }
