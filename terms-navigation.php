@@ -4,7 +4,7 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
   global $wp_query;
 
   $post_type = $post_type ?: get_post_type();
-  $taxonomy = get_object_taxonomies( $post_type )[0];
+  $taxonomy = $taxonomy ?: get_object_taxonomies( $post_type )[0];
   $template = $options['template'] ?: 'terms-navigation';
   $format = $options['format'] ?: '';
 
@@ -19,15 +19,18 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return get_object_vars($term);
   }, $terms);
 
-
-
-  $parent_ids_map = array_reduce($terms, function($result, $current) {
+  $parent_ids_map = array_reduce($terms, function($result, $current) use ($terms) {
     $term_id = $current['term_id'];
-
     $ids = array();
-    while (($current = $current['parent'])) {
-      $ids[] = $current;
+
+    while ($current && ($parent_id = $current['parent'])) {
+      $ids[] = $parent_id;
+
+      $current = array_values(array_filter($terms, function($term) use ($parent_id) {
+        return $term['term_id'] == $parent_id;
+      }))[0];
     }
+
     $result[$term_id] = $ids;
 
     return $result;
@@ -38,11 +41,10 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $result;
   }, []);
 
-
   $selected_cat_query_arg = $post_type === 'post' && $taxonomy === 'category' ? 'cat' : $taxonomy;
   $query_value = $wp_query->query[$selected_cat_query_arg] ?: get_query_var($selected_cat_query_arg);
 
-	$selected_term_ids = array_filter(
+	$selected_term_values = array_filter(
     $term_ids = array_map(function($category) {
       return trim($category);
     }, explode(',', $query_value) ?: array()),
@@ -61,9 +63,9 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     }
 
     return null;
-  }, $selected_term_ids);
+  }, $selected_term_values);
 
-  $has_selected_categories = count($selected_term_ids) > 0;
+  $has_selected_categories = count($selected_term_values) > 0;
 
   $selected_sibling_ids = array_reduce($selected_terms, function($result, $current) use ($terms) {
     $parent_id = $current['parent'];
@@ -81,16 +83,18 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $result;
   }, []);
 
-  $terms = array_map(function($tag) use ($archive_link, $selected_term_ids, $selected_cat_query_arg) {
+  // print_r($selected_sibling_ids);
+
+  $terms = array_map(function($tag) use ($archive_link, $selected_term_values, $selected_cat_query_arg) {
 
     $link = $archive_link;
     $link_categories = array();
 
     $value = $selected_cat_query_arg === 'cat' ? $tag['term_id'] : $tag['slug'];
-    $active = in_array($value, $selected_term_ids);
+    $active = in_array($value, $selected_term_values);
 
     if ($active) {
-      $link_categories = array_filter($selected_term_ids, function($category) use ($value) {
+      $link_categories = array_filter($selected_term_values, function($category) use ($value) {
         return $category != $value;
       });
 
@@ -105,7 +109,7 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
 
 
     } else {
-      $link_categories = array_merge($selected_term_ids, array($value));
+      $link_categories = array_merge($selected_term_values, array($value));
     }
 
     if (count($link_categories) > 0) {
@@ -126,24 +130,21 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     ]);
   }, $terms);
 
-  $terms = array_map(function($term) use ($active_parent_ids) {
-    if (in_array($term['term_id'], $active_parent_ids)) {
-      $term['active'] = true;
-    }
+  $active_terms = array_values(array_filter($terms, function($term) {
+    return $term['active'];
+  }));
 
-    return $term;
-  }, $terms);
+  $active_term_ids = array_map(function($term) {
+    return $term['term_id'];
+  }, $active_terms);
 
+  $active_parent_ids = array_unique(array_reduce($active_terms, function($result, $current) use ($parent_ids_map) {
+    $term_id = $current['term_id'];
+    $parent_ids = $parent_ids_map[$term_id];
+    $result = array_merge($result, $parent_ids);
 
-
-  $active_parent_ids = array_reduce(array_filter($terms, function($term) {
-    return $term['active'] && $term['parent'];
-  }), function($result, $current) {
-    while (($current = $current['parent'])) {
-      $result[] = $current;
-    }
     return $result;
-  }, []);
+  }, []));
 
   $terms = array_map(function($term) use ($active_parent_ids) {
     if (in_array($term['term_id'], $active_parent_ids)) {
@@ -153,25 +154,79 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $term;
   }, $terms);
 
+  $active_ids = array_merge($active_parent_ids, $active_term_ids);
 
-  // if ($query_value) {
-  //   echo 'FILTER TERMS' . $query_value;
-  //   $terms = array_values(array_filter($terms, function($term) use ($parent_ids, $selected_term_ids, $selected_sibling_ids) {
-  //     if (!$term['term_id']['parent']) {
-  //       return true;
-  //     }
-  //     return in_array($term['term_id'], $parent_ids) || in_array($term['term_id'], $selected_term_ids) || in_array($term['term_id'], $selected_sibling_ids);
-  //   }));
-  // };
+  if ($query_value) {
+    $terms = array_values(array_filter($terms, function($term) use ($parent_ids_map, $active_ids) {
+      if (!$term['parent']) {
+        return true;
+      }
 
-  // print_r($terms);
+      $parent_ids = $parent_ids_map[$term['term_id']];
 
-  // foreach ($terms as $term) {
-  //   if ($term['name'] === 'Grandchild Category') {
-  //     echo 'TERM: ' . $term['name'] . ' <br/>';
-  //     echo 'parent: ' . $term['parent'] . ' <br/>';
-  //   }
-  // }
+      $in_branch = count(array_values(array_filter($parent_ids, function($term_id) use ($active_ids) {
+        return in_array($term_id, $active_ids);
+      }))) > 0;
+
+      if ($in_branch) {
+        return true;
+      }
+
+      return false;
+    }));
+  }
+
+  // Grouping
+  $is_grouped = true;
+
+  if ($is_grouped) {
+    $groups = array_reduce($terms, function($result, $current) {
+      $label = $current['label'];
+      $result[$label] = isset($result[$label]) ? $result[$label] : array_merge($current, [
+        'terms' => [],
+        'values' => [],
+        'active' => false,
+        'active_parent' => false
+      ]);
+      $result[$label]['terms'][] = $current;
+      $result[$label]['values'][] = $current['value'];
+      $result[$label]['active'] = $current['active'] ? true : $result[$label]['active'];
+      $result[$label]['active_parent'] = $current['active_parent'] ? true : $result[$label]['active_parent'];
+
+      return $result;
+    }, []);
+
+    $terms = array_map(function($group) use ($selected_cat_query_arg, $archive_link, $selected_term_values) {
+      $values = $group['values'];
+      $active = $group['active'];
+      $link = $archive_link;
+
+      // echo 'CREATE GROUP LINK: "' . $group['label'] . '" -> ' . $group['link'] . '<br/>';
+
+      // if ($active) {
+      //   $link = remove_query_arg($selected_cat_query_arg, implode(',', $values), $link);
+      // }
+
+      if (!$active) {
+        $link_values = array_merge($selected_term_values, $values);
+      } else {
+        $link_values = array_values(array_filter($selected_term_values, function($term_value) use ($values) {
+          return !in_array($term_value, $values);
+        }));
+      }
+
+      $link = add_query_arg($selected_cat_query_arg, implode(',', $link_values), $link);
+
+      // else {
+      //   $link = add_query_arg($selected_cat_query_arg, implode(',', $values), $group['link']);
+      // }
+
+      return array_merge($group, [
+        'link' => $link,
+        'grouped' => count($values) > 1
+      ]);
+    }, array_values($groups));
+  }
 
 
   $nested_terms = wp_terms_navigation_convert_to_hierarchy($terms);
@@ -182,7 +237,6 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
 
 
   $flat = wp_terms_navigation_hierarchy_to_flat($nested_terms);
-  // print_r($terms);
   $levels = array();
 
   foreach ($flat as $term) {
@@ -199,19 +253,14 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     }
   }
 
-
-  /*
-  echo '<pre><code>';
-  echo var_dump($nested_terms);
-  echo '</code></pre>';
-  */
-
   $options = array_merge($options, [
     // 'terms' => $terms,
     'levels' => $levels,
     'level' => 0,
     'template' => $template,
-    'format' => $format
+    'format' => $format,
+    'post_type' => $post_type,
+    'taxonomy' => $taxonomy
   ]);
 
   $output = get_terms_menu($nested_terms, $options);
@@ -220,7 +269,7 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
 }
 
 
-function get_terms_menu($terms = array(), $options) {
+function get_terms_menu($terms = array(), $options = array()) {
   $template = $options['template'] ?: '';
   $format = $options['format'] ?: '';
 

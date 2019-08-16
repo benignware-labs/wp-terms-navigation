@@ -12,7 +12,7 @@
     <ul class="terms-menu nav">
       <?php foreach ($item['terms'] as $term): ?>
         <li
-          class="terms-item nav-item <?= $term['active'] ? 'is-active' : ''; ?> <?= count($term['children']) > 0 ? 'has-children' : ''; ?>"
+          class="terms-item nav-item <?= $term['hidden'] ? 'd-none' : ''; ?> <?= $term['active'] ? 'is-active' : ''; ?>"
         >
           <a class="terms-link nav-link" href="<?= $term['link']; ?>">
             <?= $term['name']; ?>

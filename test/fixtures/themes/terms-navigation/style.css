@@ -11,11 +11,24 @@ Version: 0.0.1
 
 }
 
-*[data-toggle='collapse'] i {
-  font-size: 1.4rem;
+*[data-toggle='collapse'] {
+  cursor: pointer;
 }
 
-*[data-toggle='collapse'].collapsed i {
-  transform: rotate(180deg);
+*[data-toggle='collapse'] i {
+  font-size: 1.3333em;
   transform-origin: center;
+  vertical-align: middle;
+}
+
+*[data-toggle='collapse'].collapsed i[class*='-up'] {
+  transform: rotate(180deg);
+}
+
+*[data-toggle='collapse'] i[class*='-right'] {
+  transform: rotate(90deg);
+}
+
+*[data-toggle='collapse'].collapsed i[class*='-right'] {
+  transform: rotate(0);
 }
