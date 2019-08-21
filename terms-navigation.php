@@ -2,13 +2,17 @@
 
 function get_terms_navigation($post_type = null, $taxonomy = null, $options = array()) {
   global $wp_query;
+  global $wp;
 
   $post_type = $post_type ?: get_post_type();
   $taxonomy = $taxonomy ?: get_object_taxonomies( $post_type )[0];
   $template = $options['template'] ?: 'terms-navigation';
   $format = $options['format'] ?: '';
 
-  $archive_link = get_post_type_archive_link($post_type);
+  $archive_base = get_post_type_archive_link($post_type);
+  // $archive_base = add_query_arg( array(), $wp->request );
+  $query_string = http_build_query($_GET);
+  $archive_link = $archive_base . ( $query_string ? '?' . $query_string : '');
 
   $terms = get_terms(array(
 		'taxonomy' => $taxonomy,
@@ -53,17 +57,71 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
   	}
   );
 
+  $selected_term_ids = array_map(function($slug) use ($terms) {
+    return array_values(array_filter($terms, function($term) use ($slug) {
+      return $term['slug'] == $slug;
+    }))[0]['term_id'];
+  }, $selected_term_values);
+
+  $selected_branches = array_reduce($selected_term_ids, function($result, $term_id) use ($parent_ids_map, $selected_term_ids) {
+    $parent_ids = $parent_ids_map[$term_id];
+
+    $selected_parent_ids = array_filter($parent_ids, function($term_id) use ($selected_term_ids) {
+      return in_array($term_id, $selected_term_ids);
+    });
+
+    $branch = array_merge([ $term_id ], $selected_parent_ids);
+
+    $result[] = $branch;
+
+    return $result;
+  }, []);
+
+  // usort($selected_branches, function($a, $b) {
+  //   return count($b) - count($a);
+  // });
+  //
+  // $c = 0;
+  // $filtered_selected_branches = array_reduce($selected_branches, function($result, $branch) use (&$c, $selected_branches) {
+  //   $c++;
+  //   $other_branches = array_slice($selected_branches, $c);
+  //
+  //   echo $c;
+  //
+  //   $is_unique = count(array_values(array_filter($other_branches, function($other_branch) use ($branch) {
+  //     return array_filter($other_branch, function($term_id) use ($branch) {
+  //       return in_array($term_id, $branch);
+  //     });
+  //   }))) > 0;
+  //
+  //   if ($is_unique) {
+  //     $result[] = $branch;
+  //   }
+  //
+  //   return $result;
+  // });
+  //
+  // print_r($filtered_selected_branches);
+  // exit;
+
+  // Exclude parents of selected terms
+  $excluded_parent_ids = array_reduce($selected_term_ids, function($result, $term_id) use ($parent_ids_map) {
+    return array_merge($result, $parent_ids_map[$term_id]);
+  }, []);
+
+  $selected_term_ids = array_values(array_filter($selected_term_ids, function($term_id) use ($excluded_parent_ids) {
+    return !in_array($term_id, $excluded_parent_ids);
+  }));
+
   $selected_terms = array_map(function($term_id) use ($terms) {
-    $term = array_values(array_filter($terms, function($term) use ($term_id) {
+    return array_values(array_filter($terms, function($term) use ($term_id) {
       return $term['term_id'] == $term_id;
     }))[0];
+  }, $selected_term_ids);
 
-    if ($term) {
-      return $term;
-    }
-
-    return null;
-  }, $selected_term_values);
+  $selected_term_values = array_map(function($term) use ($selected_cat_query_arg) {
+    return $selected_cat_query_arg === 'cat' ? $term['term_id'] : $term['slug'];
+  }, $selected_terms);
 
   $has_selected_categories = count($selected_term_values) > 0;
 
@@ -83,10 +141,7 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $result;
   }, []);
 
-  // print_r($selected_sibling_ids);
-
   $terms = array_map(function($tag) use ($archive_link, $selected_term_values, $selected_cat_query_arg) {
-
     $link = $archive_link;
     $link_categories = array();
 
@@ -97,17 +152,6 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
       $link_categories = array_filter($selected_term_values, function($category) use ($value) {
         return $category != $value;
       });
-
-      // $link_categories = array_reduce($link_categories, function($result, $current) {
-      //   return array_merge([
-      //     $current['term_id']
-      //   ], $result, $parent_ids[$current['term_id']]);
-      // }, []);
-      //
-      //
-      // print_r($link_categories);
-
-
     } else {
       $link_categories = array_merge($selected_term_values, array($value));
     }
@@ -119,7 +163,7 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
       $link = $archive_link;
     }
 
-    $link = add_query_arg( $selected_cat_query_arg, implode(',', $link_categories), $link);
+    $link = add_query_arg($selected_cat_query_arg, implode(',', $link_categories), $link);
 
     return array_merge($tag, [
       'link' => $link,
@@ -201,12 +245,6 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
       $active = $group['active'];
       $link = $archive_link;
 
-      // echo 'CREATE GROUP LINK: "' . $group['label'] . '" -> ' . $group['link'] . '<br/>';
-
-      // if ($active) {
-      //   $link = remove_query_arg($selected_cat_query_arg, implode(',', $values), $link);
-      // }
-
       if (!$active) {
         $link_values = array_merge($selected_term_values, $values);
       } else {
@@ -217,17 +255,12 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
 
       $link = add_query_arg($selected_cat_query_arg, implode(',', $link_values), $link);
 
-      // else {
-      //   $link = add_query_arg($selected_cat_query_arg, implode(',', $values), $group['link']);
-      // }
-
       return array_merge($group, [
         'link' => $link,
         'grouped' => count($values) > 1
       ]);
     }, array_values($groups));
   }
-
 
   $nested_terms = wp_terms_navigation_convert_to_hierarchy($terms);
 

@@ -1,6 +1,6 @@
 {
   "name": "wp-terms-navigation",
-  "version": "0.0.3",
+  "version": "0.0.4-beta.1",
   "description": "Wordpress theme",
   "private": true,
   "main": "dist/main.js",
