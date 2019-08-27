@@ -9,10 +9,16 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
   $template = $options['template'] ?: 'terms-navigation';
   $format = $options['format'] ?: '';
 
+  $selected_cat_query_arg = $post_type === 'post' && $taxonomy === 'category' ? 'cat' : $taxonomy;
+  $query_value = $wp_query->query[$selected_cat_query_arg] ?: get_query_var($selected_cat_query_arg);
+
   $archive_base = get_post_type_archive_link($post_type);
   // $archive_base = add_query_arg( array(), $wp->request );
   $query_string = http_build_query($_GET);
   $archive_link = $archive_base . ( $query_string ? '?' . $query_string : '');
+  $archive_link = remove_query_arg($selected_cat_query_arg, $archive_link);
+  //
+  // echo 'archive_link' . $archive_link . '<br/><br/>';
 
   $terms = get_terms(array(
 		'taxonomy' => $taxonomy,
@@ -40,13 +46,41 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $result;
   }, array());
 
+  $descendants_ids_map = array_reduce($terms, function($result, $current) use ($terms, $parent_ids_map) {
+    $term_id = $current['term_id'];
+
+    // echo 'GET DESCENDANTS: ' . $term_id . '<br/>';
+
+    $descendant_terms = array_values(array_filter($terms, function($term) use ($term_id, $parent_ids_map) {
+      // echo 'TEST: ' . $term['term_id'] . '<br/>';
+      $parent_ids = $parent_ids_map[$term['term_id']];
+      // print_r($parent_ids, in_array($term_id, $parent_ids));
+      // echo '<br/>';
+      $is_ancestor = in_array($term_id, $parent_ids);
+
+      // if ($is_ancestor) {
+      //   echo 'MATCH: <br/><br/>';
+      // }
+
+      return $is_ancestor;
+    }));
+
+    $descendant_ids = array_map(function($term) {
+      return $term['term_id'];
+    }, $descendant_terms);
+
+    $result[$term_id] = $descendant_ids;
+
+    return $result;
+  }, array());
+
+  // echo '<pre><code>';
+  // print_r($descendants_ids_map);
+  // echo '</pre></code>';
   $parent_ids = array_reduce($parent_ids_map, function($result, $current) {
     $result = array_merge($result, $current);
     return $result;
   }, []);
-
-  $selected_cat_query_arg = $post_type === 'post' && $taxonomy === 'category' ? 'cat' : $taxonomy;
-  $query_value = $wp_query->query[$selected_cat_query_arg] ?: get_query_var($selected_cat_query_arg);
 
 	$selected_term_values = array_filter(
     $term_ids = array_map(function($category) {
@@ -63,82 +97,82 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     }))[0]['term_id'];
   }, $selected_term_values);
 
-  $selected_branches = array_reduce($selected_term_ids, function($result, $term_id) use ($parent_ids_map, $selected_term_ids) {
-    $parent_ids = $parent_ids_map[$term_id];
-
-    $selected_parent_ids = array_filter($parent_ids, function($term_id) use ($selected_term_ids) {
-      return in_array($term_id, $selected_term_ids);
-    });
-
-    $branch = array_merge([ $term_id ], $selected_parent_ids);
-
-    $result[] = $branch;
-
-    return $result;
-  }, []);
-
-  usort($selected_branches, function($a, $b) {
-    $a = count($a);
-    $b = count($b);
-    if ($a == $b) {
-      return 0;
-    }
-    return ($a > $b) ? -1 : 1;
-  });
-
-  $filtered_selected_branches = array_reduce($selected_branches, function($result, $branch) use ($selected_branches) {
-    $intersect = array_values(array_filter($result, function($result_branch) use ($branch) {
-      $intersect = array_intersect($branch, $result_branch);
-      return $intersect;
-    }));
-    $is_contained = count($intersect) > 1;
-
-    if (!$is_contained) {
-      $result[] = $branch;
-    }
-
-    return $result;
-  });
-
-  $selected_indices = array_flip($selected_term_ids);
-  $filtered_selected_branches = array_map(function($branch) use ($selected_indices) {
-    usort($branch, function($a, $b) use ($selected_indices) {
-      if ($selected_indices[$a] == $selected_indices[$b]) {
-        return 0;
-      }
-      return $selected_indices[$a] > $selected_indices[$b] ? 1 : -1;
-    });
-    return $branch;
-  }, $filtered_selected_branches);
-
-  $excluded_term_ids = array_reduce($filtered_selected_branches, function($result, $branch) use ($terms) {
-    if (count($branch) > 1) {
-      $branch = array_reverse($branch);
-      $term_id = array_shift($branch);
-
-      $term = array_values(array_filter($terms, function($term) use ($term_id) {
-        return $term['term_id'] == $term_id;
-      }))[0];
-      $parent_id = $term['parent'];
-
-      $excluded_branch_ids = array_filter($branch, function($term_id) use ($parent_id, $terms) {
-        $term = array_values(array_filter($terms, function($term) use ($term_id) {
-          return $term['term_id'] == $term_id;
-        }))[0];
-
-        return $term['parent'] != $parent_id;
-      });
-
-      $result = array_merge($result, $excluded_branch_ids);
-    }
-
-    return $result;
-  }, []);
-
-  // Actually exclude them from selected term ids
-  $selected_term_ids = array_values(array_filter($selected_term_ids, function($term_id) use ($excluded_term_ids) {
-    return !in_array($term_id, $excluded_term_ids);
-  }));
+  // $selected_branches = array_reduce($selected_term_ids, function($result, $term_id) use ($parent_ids_map, $selected_term_ids) {
+  //   $parent_ids = $parent_ids_map[$term_id];
+  //
+  //   $selected_parent_ids = array_filter($parent_ids, function($term_id) use ($selected_term_ids) {
+  //     return in_array($term_id, $selected_term_ids);
+  //   });
+  //
+  //   $branch = array_merge([ $term_id ], $selected_parent_ids);
+  //
+  //   $result[] = $branch;
+  //
+  //   return $result;
+  // }, []);
+  //
+  // usort($selected_branches, function($a, $b) {
+  //   $a = count($a);
+  //   $b = count($b);
+  //   if ($a == $b) {
+  //     return 0;
+  //   }
+  //   return ($a > $b) ? -1 : 1;
+  // });
+  //
+  // $filtered_selected_branches = array_reduce($selected_branches, function($result, $branch) use ($selected_branches) {
+  //   $intersect = array_values(array_filter($result, function($result_branch) use ($branch) {
+  //     $intersect = array_intersect($branch, $result_branch);
+  //     return $intersect;
+  //   }));
+  //   $is_contained = count($intersect) > 1;
+  //
+  //   if (!$is_contained) {
+  //     $result[] = $branch;
+  //   }
+  //
+  //   return $result;
+  // });
+  //
+  // $selected_indices = array_flip($selected_term_ids);
+  // $filtered_selected_branches = array_map(function($branch) use ($selected_indices) {
+  //   usort($branch, function($a, $b) use ($selected_indices) {
+  //     if ($selected_indices[$a] == $selected_indices[$b]) {
+  //       return 0;
+  //     }
+  //     return $selected_indices[$a] > $selected_indices[$b] ? 1 : -1;
+  //   });
+  //   return $branch;
+  // }, $filtered_selected_branches);
+  //
+  // $excluded_term_ids = array_reduce($filtered_selected_branches, function($result, $branch) use ($terms) {
+  //   if (count($branch) > 1) {
+  //     $branch = array_reverse($branch);
+  //     $term_id = array_shift($branch);
+  //
+  //     $term = array_values(array_filter($terms, function($term) use ($term_id) {
+  //       return $term['term_id'] == $term_id;
+  //     }))[0];
+  //     $parent_id = $term['parent'];
+  //
+  //     $excluded_branch_ids = array_filter($branch, function($term_id) use ($parent_id, $terms) {
+  //       $term = array_values(array_filter($terms, function($term) use ($term_id) {
+  //         return $term['term_id'] == $term_id;
+  //       }))[0];
+  //
+  //       return $term['parent'] != $parent_id;
+  //     });
+  //
+  //     $result = array_merge($result, $excluded_branch_ids);
+  //   }
+  //
+  //   return $result;
+  // }, []);
+  //
+  // // Actually exclude them from selected term ids
+  // $selected_term_ids = array_values(array_filter($selected_term_ids, function($term_id) use ($excluded_term_ids) {
+  //   return !in_array($term_id, $excluded_term_ids);
+  // }));
 
   // Adopt exclusion to selected term objects
   $selected_terms = array_map(function($term_id) use ($terms) {
@@ -169,36 +203,58 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $result;
   }, []);
 
-  $terms = array_map(function($tag) use ($archive_link, $selected_term_values, $selected_cat_query_arg) {
-    $link = $archive_link;
-    $link_categories = array();
-
-    $value = $selected_cat_query_arg === 'cat' ? $tag['term_id'] : $tag['slug'];
+  $terms = array_map(function($term) use ($archive_link, $selected_term_values, $selected_cat_query_arg) {
+    $value = $selected_cat_query_arg === 'cat' ? $term['term_id'] : $term['slug'];
     $active = in_array($value, $selected_term_values);
 
-    if ($active) {
-      $link_categories = array_filter($selected_term_values, function($category) use ($value) {
-        return $category != $value;
-      });
-    } else {
-      $link_categories = array_merge($selected_term_values, array($value));
-    }
-
-    if (count($link_categories) > 0) {
-      $link = add_query_arg($selected_cat_query_arg, implode(',', $link_categories), $link);
-    } else {
-      $link = remove_query_arg($selected_cat_query_arg, $link);
-      $link = $archive_link;
-    }
-
-    $link = add_query_arg($selected_cat_query_arg, implode(',', $link_categories), $link);
-
-    return array_merge($tag, [
-      'link' => $link,
-      'label' => $tag['name'],
+    return array_merge($term, [
+      'label' => $term['name'],
       'value' => $value,
       'active' => $active,
       'selected' => $active
+    ]);
+  }, $terms);
+
+  $terms = array_map(function($term) use ($terms, $archive_link, $selected_cat_query_arg, $selected_term_ids, $parent_ids_map, $descendants_ids_map) {
+    $term_id = $term['term_id'];
+    $active = $term['active'];
+    $value = $term['value'];
+
+    $parent_ids = $parent_ids_map[$term_id];
+    $descendant_ids = $descendants_ids_map[$term_id];
+    $excluded_term_ids = array_merge($descendant_ids, $parent_ids);
+
+    $link = $archive_link;
+
+    $link_ids = array_values(array_filter($selected_term_ids, function($term_id) use ($excluded_term_ids) {
+      return !in_array($term_id, $excluded_term_ids);
+    }));
+
+    if (!$active) {
+      $link_ids[] = $term_id;
+    } else {
+      $link_ids = array_values(array_filter($link_ids, function($link_id) use ($term_id) {
+        return $link_id != $term_id;
+      }));
+    }
+
+    $link_values = array_map(function($link_id) use ($terms) {
+      $term = array_values(array_filter($terms, function($term) use ($link_id) {
+        return $term['term_id'] == $link_id;
+      }))[0];
+
+      return $term['value'];
+    }, $link_ids);
+
+    if (count($link_values) > 0) {
+      $link = add_query_arg($selected_cat_query_arg, implode(',', $link_values), $link);
+    } else {
+      $link = $archive_link;
+    }
+
+    return array_merge($term, [
+      'link' => $link,
+      'link_values' => $link_values
     ]);
   }, $terms);
 
@@ -271,14 +327,15 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     $terms = array_map(function($group) use ($selected_cat_query_arg, $archive_link, $selected_term_values) {
       $values = $group['values'];
       $active = $group['active'];
+      $link_values = array_unique(array_reduce($group['terms'], function($result, $current) {
+        return array_merge($result, $current['link_values']);
+      }, []));
       $link = $archive_link;
 
-      if (!$active) {
-        $link_values = array_merge($selected_term_values, $values);
+      if (count($link_values) > 0) {
+        $link = add_query_arg($selected_cat_query_arg, implode(',', $link_values), $link);
       } else {
-        $link_values = array_values(array_filter($selected_term_values, function($term_value) use ($values) {
-          return !in_array($term_value, $values);
-        }));
+        $link = $archive_link;
       }
 
       $link = add_query_arg($selected_cat_query_arg, implode(',', $link_values), $link);
