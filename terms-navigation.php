@@ -87,10 +87,11 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
   });
 
   $filtered_selected_branches = array_reduce($selected_branches, function($result, $branch) use ($selected_branches) {
-    $is_contained = count(array_values(array_filter($result, function($result_branch) use ($branch) {
+    $intersect = array_values(array_filter($result, function($result_branch) use ($branch) {
       $intersect = array_intersect($branch, $result_branch);
       return $intersect;
-    }))) > 0;
+    }));
+    $is_contained = count($intersect) > 1;
 
     if (!$is_contained) {
       $result[] = $branch;
@@ -110,8 +111,28 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $branch;
   }, $filtered_selected_branches);
 
-  $excluded_term_ids = array_reduce($filtered_selected_branches, function($result, $branch) {
-    return count($branch) > 1 ? array_merge($result, array_slice($branch, 0, count($branch) - 1)) : $result;
+  $excluded_term_ids = array_reduce($filtered_selected_branches, function($result, $branch) use ($terms) {
+    if (count($branch) > 1) {
+      $branch = array_reverse($branch);
+      $term_id = array_shift($branch);
+
+      $term = array_values(array_filter($terms, function($term) use ($term_id) {
+        return $term['term_id'] == $term_id;
+      }))[0];
+      $parent_id = $term['parent'];
+
+      $excluded_branch_ids = array_filter($branch, function($term_id) use ($parent_id, $terms) {
+        $term = array_values(array_filter($terms, function($term) use ($term_id) {
+          return $term['term_id'] == $term_id;
+        }))[0];
+
+        return $term['parent'] != $parent_id;
+      });
+
+      $result = array_merge($result, $excluded_branch_ids);
+    }
+
+    return $result;
   }, []);
 
   // Actually exclude them from selected term ids
