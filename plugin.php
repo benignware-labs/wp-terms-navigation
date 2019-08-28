@@ -6,7 +6,7 @@
  * Description: Hierarchical filter navigation
  * Author: Rafael Nowrotek
  * Author URI: http://benignware.com/
- * Version: 0.0.6
+ * Version: 0.0.7
  *
  */
 
