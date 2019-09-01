@@ -13,12 +13,9 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
   $query_value = $wp_query->query[$selected_cat_query_arg] ?: get_query_var($selected_cat_query_arg);
 
   $archive_base = get_post_type_archive_link($post_type);
-  // $archive_base = add_query_arg( array(), $wp->request );
   $query_string = http_build_query($_GET);
   $archive_link = $archive_base . ( $query_string ? '?' . $query_string : '');
   $archive_link = remove_query_arg($selected_cat_query_arg, $archive_link);
-  //
-  // echo 'archive_link' . $archive_link . '<br/><br/>';
 
   $terms = get_terms(array(
 		'taxonomy' => $taxonomy,
@@ -49,19 +46,9 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
   $descendants_ids_map = array_reduce($terms, function($result, $current) use ($terms, $parent_ids_map) {
     $term_id = $current['term_id'];
 
-    // echo 'GET DESCENDANTS: ' . $term_id . '<br/>';
-
     $descendant_terms = array_values(array_filter($terms, function($term) use ($term_id, $parent_ids_map) {
-      // echo 'TEST: ' . $term['term_id'] . '<br/>';
       $parent_ids = $parent_ids_map[$term['term_id']];
-      // print_r($parent_ids, in_array($term_id, $parent_ids));
-      // echo '<br/>';
       $is_ancestor = in_array($term_id, $parent_ids);
-
-      // if ($is_ancestor) {
-      //   echo 'MATCH: <br/><br/>';
-      // }
-
       return $is_ancestor;
     }));
 
@@ -74,9 +61,6 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     return $result;
   }, array());
 
-  // echo '<pre><code>';
-  // print_r($descendants_ids_map);
-  // echo '</pre></code>';
   $parent_ids = array_reduce($parent_ids_map, function($result, $current) {
     $result = array_merge($result, $current);
     return $result;
@@ -97,86 +81,6 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     }))[0]['term_id'];
   }, $selected_term_values);
 
-
-
-  // $selected_branches = array_reduce($selected_term_ids, function($result, $term_id) use ($parent_ids_map, $selected_term_ids) {
-  //   $parent_ids = $parent_ids_map[$term_id];
-  //
-  //   $selected_parent_ids = array_filter($parent_ids, function($term_id) use ($selected_term_ids) {
-  //     return in_array($term_id, $selected_term_ids);
-  //   });
-  //
-  //   $branch = array_merge([ $term_id ], $selected_parent_ids);
-  //
-  //   $result[] = $branch;
-  //
-  //   return $result;
-  // }, []);
-  //
-  // usort($selected_branches, function($a, $b) {
-  //   $a = count($a);
-  //   $b = count($b);
-  //   if ($a == $b) {
-  //     return 0;
-  //   }
-  //   return ($a > $b) ? -1 : 1;
-  // });
-  //
-  // $filtered_selected_branches = array_reduce($selected_branches, function($result, $branch) use ($selected_branches) {
-  //   $intersect = array_values(array_filter($result, function($result_branch) use ($branch) {
-  //     $intersect = array_intersect($branch, $result_branch);
-  //     return $intersect;
-  //   }));
-  //   $is_contained = count($intersect) > 1;
-  //
-  //   if (!$is_contained) {
-  //     $result[] = $branch;
-  //   }
-  //
-  //   return $result;
-  // });
-  //
-  // $selected_indices = array_flip($selected_term_ids);
-  // $filtered_selected_branches = array_map(function($branch) use ($selected_indices) {
-  //   usort($branch, function($a, $b) use ($selected_indices) {
-  //     if ($selected_indices[$a] == $selected_indices[$b]) {
-  //       return 0;
-  //     }
-  //     return $selected_indices[$a] > $selected_indices[$b] ? 1 : -1;
-  //   });
-  //   return $branch;
-  // }, $filtered_selected_branches);
-  //
-  // $excluded_term_ids = array_reduce($filtered_selected_branches, function($result, $branch) use ($terms) {
-  //   if (count($branch) > 1) {
-  //     $branch = array_reverse($branch);
-  //     $term_id = array_shift($branch);
-  //
-  //     $term = array_values(array_filter($terms, function($term) use ($term_id) {
-  //       return $term['term_id'] == $term_id;
-  //     }))[0];
-  //     $parent_id = $term['parent'];
-  //
-  //     $excluded_branch_ids = array_filter($branch, function($term_id) use ($parent_id, $terms) {
-  //       $term = array_values(array_filter($terms, function($term) use ($term_id) {
-  //         return $term['term_id'] == $term_id;
-  //       }))[0];
-  //
-  //       return $term['parent'] != $parent_id;
-  //     });
-  //
-  //     $result = array_merge($result, $excluded_branch_ids);
-  //   }
-  //
-  //   return $result;
-  // }, []);
-  //
-  // // Actually exclude them from selected term ids
-  // $selected_term_ids = array_values(array_filter($selected_term_ids, function($term_id) use ($excluded_term_ids) {
-  //   return !in_array($term_id, $excluded_term_ids);
-  // }));
-
-  // Adopt exclusion to selected term objects
   $selected_terms = array_map(function($term_id) use ($terms) {
     return array_values(array_filter($terms, function($term) use ($term_id) {
       return $term['term_id'] == $term_id;
@@ -349,28 +253,48 @@ function get_terms_navigation($post_type = null, $taxonomy = null, $options = ar
     }, array_values($groups));
   }
 
-  $excluded_term_ids = array_reduce($selected_term_ids, function($result, $term_id) use ($terms, $descendants_ids_map) {
-    // Get children
-    $children = array_values(array_filter($terms, function($term) use ($term_id) {
-      return $term['parent'] == $term_id;
-    }));
-    $children_ids = array_map(function($term) {
-      return $term['term_id'];
-    }, $children);
+  if ($query_value) {
 
-    // Exclude descendants of selected children
-    $decendant_ids = array_reduce($children_ids, function($result, $term_id) use ($descendants_ids_map) {
-      return array_merge($result, $descendants_ids_map[$term_id]);
+    $term_ids = array_reduce($terms, function($result, $term) use ($terms, $selected_term_ids, $parent_ids_map) {
+      $term_id = $term['term_id'];
+
+      if (in_array($term_id, $selected_term_ids)) {
+        // Get siblings
+        $parent_id = $term['parent'];
+        $siblings = array_values(array_filter($terms, function($term) use ($parent_id) {
+          return $term['parent'] == $parent_id;
+        }));
+        $sibling_ids = array_map(function($term) {
+          return $term['term_id'];
+        }, $siblings);
+        // Get children
+        $children = array_values(array_filter($terms, function($term) use ($term_id) {
+          return $term['parent'] == $term_id;
+        }));
+
+        $children_ids = array_map(function($term) {
+          return $term['term_id'];
+        }, $children);
+
+        $parent_ids = $parent_ids_map[$term_id];
+
+        $result[] = $term_id;
+        $result = array_merge($result, $children_ids);
+        $result = array_merge($result, $sibling_ids);
+        $result = array_merge($result, $parent_ids);
+      } else if (!$term['parent']) {
+        $result[] = $term_id;
+      }
+      return $result;
     }, []);
 
-    $result = array_merge($result, $decendant_ids);
+    $term_ids = array_unique($term_ids);
+    $terms = array_values(array_filter($terms, function($term) use ($term_ids) {
+      return in_array($term['term_id'], $term_ids);
+    }));
+  }
 
-    return $result;
-  }, []);
 
-  $terms = array_filter($terms, function($term) use ($excluded_term_ids) {
-    return !in_array($term['term_id'], $excluded_term_ids);
-  });
 
   $nested_terms = wp_terms_navigation_convert_to_hierarchy($terms);
 
